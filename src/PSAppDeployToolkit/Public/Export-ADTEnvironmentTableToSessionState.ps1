@@ -78,13 +78,10 @@ function Export-ADTEnvironmentTableToSessionState
             try
             {
                 $adtEnv.GetEnumerator() | & {
-                    process {
+                    process
+                    {
                         # Prior removal is required for ReadOnly variables
-                        $SessionState.PSVariable.Get($_.Key) | & {
-                            process {
-                                $SessionState.PSVariable.Remove($_)
-                            }
-                        }
+                        $SessionState.PSVariable.Remove($_.Key)
 
                         $SessionState.PSVariable.Set(
                             [System.Management.Automation.PSVariable]::new(

@@ -92,19 +92,8 @@ function Convert-ADTRegistryPath
         {
             try
             {
-                # Convert the registry key hive to the full path, only match if at the beginning of the line.
-                $Script:Registry.PathReplacements.GetEnumerator() | . {
-                    process
-                    {
-                        if ($Key -match $_.Key)
-                        {
-                            foreach ($regexMatch in ($Script:Registry.PathMatches -replace '^', $_.Key))
-                            {
-                                $Key = $Key -replace $regexMatch, $_.Value
-                            }
-                        }
-                    }
-                }
+                # Convert the registry key hive to the provider qualified full path.
+                $Key = Resolve-ADTPath -LiteralPath $Key -ProviderName 'Microsoft.PowerShell.Core\Registry' -IncludeNonExistent
 
                 # Process the WOW6432Node values if applicable.
                 if ($Wow6432Node -and [System.Environment]::Is64BitProcess)
@@ -118,15 +107,6 @@ function Convert-ADTRegistryPath
                             }
                         }
                     }
-                }
-
-                # Strip any partial provider paths off the start.
-                $Key = $Key -replace '^.+::'
-
-                # Append the PowerShell provider to the registry key path.
-                if ($Key -notmatch '^Microsoft\.PowerShell\.Core\\Registry::')
-                {
-                    $Key = "Microsoft.PowerShell.Core\Registry::$Key"
                 }
 
                 # If the SID variable is specified, then convert all HKEY_CURRENT_USER key's to HKEY_USERS\$SID.
@@ -143,18 +123,6 @@ function Convert-ADTRegistryPath
                     }
                 }
 
-                # Check for expected key string format.
-                if ($Key -notmatch '^Microsoft\.PowerShell\.Core\\Registry::HKEY_(LOCAL_MACHINE|CLASSES_ROOT|CURRENT_USER|USERS|CURRENT_CONFIG|PERFORMANCE_DATA)')
-                {
-                    $naerParams = @{
-                        Exception = [System.ArgumentException]::new("Unable to detect target registry hive in string [$Key].")
-                        Category = [System.Management.Automation.ErrorCategory]::InvalidResult
-                        ErrorId = 'RegistryKeyValueInvalid'
-                        TargetObject = $Key
-                        RecommendedAction = "Please confirm the supplied value is correct and try again."
-                    }
-                    throw (New-ADTErrorRecord @naerParams)
-                }
                 Write-ADTLogEntry -Message "Return fully qualified registry key path [$Key]."
                 return $Key
             }

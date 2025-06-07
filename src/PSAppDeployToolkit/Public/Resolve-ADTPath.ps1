@@ -156,37 +156,38 @@ function Resolve-ADTPath {
             & {
                 process
                 {
-                    # Determine the provider
+                    # Determine the provider and the path. FileSystem is the default provider if no provider is specified.
                     $providerInfo = $null
+                    $providerPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($_, [ref]$providerInfo, [ref]$null)
+
+                    # Validate the provider
                     if ($ProviderName)
                     {
-                        $providerInfo = $ExecutionContext.SessionState.Provider.GetOne($ProviderName)
-
-                        # Validate the provider.
-                        if ($ExecutionContext.SessionState.Path.IsProviderQualified($_))
+                        $desiredProvider = $ExecutionContext.SessionState.Provider.GetOne($ProviderName)
+                        # If the path provides provider information, check if the provider matches the desired provider.
+                        if ($ExecutionContext.SessionState.Path.IsProviderQualified($_) -and
+                            -not $providerInfo.Equals($desiredProvider)
+                        )
                         {
-                            $detectedProvider = $null
-                            $null = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($_, [ref]$detectedProvider, [ref]$null)
-                            if (!$detectedProvider.Equals($providerInfo))
-                            {
-                                $naerParams = @{
-                                    Exception = [System.Management.Automation.ProviderInvocationException]::new("The given path '$_' is not valid for the specified provider '$($providerInfo.Name)'.")
-                                    Category = [System.Management.Automation.ErrorCategory]::InvalidData
-                                    ErrorId = 'PathNotValidForProvider'
-                                    TargetObject = $_
-                                    RecommendedAction = "Use a provider qualified path for the specified provider '$($providerInfo.Name)'."
-                                }
-                                throw (New-ADTErrorRecord @naerParams)
+                            $naerParams = @{
+                                Exception = [System.Management.Automation.ProviderInvocationException]::new("The given path '$_' is not valid for the specified provider '$($providerInfo.Name)'.")
+                                Category = [System.Management.Automation.ErrorCategory]::InvalidData
+                                ErrorId = 'PathNotValidForProvider'
+                                TargetObject = $_
+                                RecommendedAction = "Use a provider qualified path for the specified provider '$($providerInfo.Name)'."
                             }
+                            throw (New-ADTErrorRecord @naerParams)
+                        }
+                        # Otherwise, use the desired provider to resolve the path.
+                        else
+                        {
+                            $providerInfo = $desiredProvider
                         }
                     }
-                    else
-                    {
-                        $null = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($_, [ref]$providerInfo, [ref]$null)
-                    }
 
-                    $qualifiedPath = if ($ExecutionContext.SessionState.Path.IsProviderQualified($_)) { $_ } else { "$($providerInfo.ModuleName)\$($providerInfo.Name)::$_" }
+                    $qualifiedPath = "$($providerInfo.ModuleName)\$($providerInfo.Name)::$providerPath"
 
+                    # Try get the item by specifying the the qualified path and invoking the Item.Get method.
                     $(
                         try
                         {

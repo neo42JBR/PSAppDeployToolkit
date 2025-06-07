@@ -168,6 +168,7 @@ function Resolve-ADTPath {
                         if (-not $ExecutionContext.SessionState.Path.IsProviderQualified($_))
                         {
                             $providerInfo = $desiredProvider
+                            $providerPath = $_
                         }
                         # if the path is provider qualified, check if it matches the desired provider.
                         elseif (-not $providerInfo.Equals($desiredProvider))

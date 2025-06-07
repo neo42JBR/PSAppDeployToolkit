@@ -164,10 +164,13 @@ function Resolve-ADTPath {
                     if ($ProviderName)
                     {
                         $desiredProvider = $ExecutionContext.SessionState.Provider.GetOne($ProviderName)
-                        # If the path provides provider information, check if the provider matches the desired provider.
-                        if ($ExecutionContext.SessionState.Path.IsProviderQualified($_) -and
-                            -not $providerInfo.Equals($desiredProvider)
-                        )
+                        # If the path is not provider qualified, just use the desired provider.
+                        if (-not $ExecutionContext.SessionState.Path.IsProviderQualified($_))
+                        {
+                            $providerInfo = $desiredProvider
+                        }
+                        # if the path is provider qualified, check if it matches the desired provider.
+                        elseif (-not $providerInfo.Equals($desiredProvider))
                         {
                             $naerParams = @{
                                 Exception = [System.Management.Automation.ProviderInvocationException]::new("The given path '$_' is not valid for the specified provider '$($providerInfo.Name)'.")
@@ -177,11 +180,6 @@ function Resolve-ADTPath {
                                 RecommendedAction = "Use a provider qualified path for the specified provider '$($providerInfo.Name)'."
                             }
                             throw (New-ADTErrorRecord @naerParams)
-                        }
-                        # Otherwise, use the desired provider to resolve the path.
-                        else
-                        {
-                            $providerInfo = $desiredProvider
                         }
                     }
 

@@ -238,9 +238,9 @@ function Resolve-ADTPath {
 
                             # Filter out items that do not match the specified filter, exclude, or include parameters.
                             $pathLeaf = $ExecutionContext.SessionState.Path.ParseChildName($_)
-                            if (($Filter -and ($pathLeaf -notlike $Filter)) -or
-                                ($Exclude -and $true -in ($Exclude | & { process { $pathLeaf -like $Filter } })) -or
-                                ($Include -and $true -notin ($Include | & { process { $pathLeaf -like $Filter } }))
+                            if (($Filter -and $pathLeaf -notlike $Filter) -or
+                                ($Exclude -and $true -in ($Exclude | & { process { $pathLeaf -like $_ } })) -or
+                                ($Include -and $true -notin ($Include | & { process { $pathLeaf -like $_ } }))
                             ) { return }
 
                             # Return as the desired path format.

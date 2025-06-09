@@ -186,6 +186,19 @@ function Resolve-ADTPath {
 
                     $qualifiedPath = "$($providerInfo.ModuleName)\$($providerInfo.Name)::$providerPath"
 
+                    # Validate if the path can be parsed by the provider.
+					if (-not $ExecutionContext.SessionState.Path.IsValid($qualifiedPath))
+                    {
+                        $naerParams = @{
+                            Exception = [System.Management.Automation.ProviderInvocationException]::new("The given path '$_' is not valid for the specified provider '$($providerInfo.Name)'.")
+                            Category = [System.Management.Automation.ErrorCategory]::InvalidData
+                            ErrorId = 'PathNotValidForProvider'
+                            TargetObject = $_
+                            RecommendedAction = "Use a provider qualified path for the specified provider '$($providerInfo.Name)'."
+                        }
+						throw (New-ADTErrorRecord @naerParams)
+					}
+
                     # Try get the item by specifying the the qualified path and invoking the Item.Get method.
                     $(
                         try

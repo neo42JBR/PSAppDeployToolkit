@@ -165,13 +165,13 @@ function Resolve-ADTPath {
                     {
                         $desiredProvider = $ExecutionContext.SessionState.Provider.GetOne($ProviderName)
                         # If the path is not provider qualified, just use the desired provider.
-                        if (-not $ExecutionContext.SessionState.Path.IsProviderQualified($_))
+                        if (!$ExecutionContext.SessionState.Path.IsProviderQualified($_))
                         {
                             $providerInfo = $desiredProvider
                             $providerPath = $_
                         }
                         # if the path is provider qualified, check if it matches the desired provider.
-                        elseif (-not $providerInfo.Equals($desiredProvider))
+                        elseif (!$providerInfo.Equals($desiredProvider))
                         {
                             $naerParams = @{
                                 Exception = [System.Management.Automation.ProviderInvocationException]::new("The given path '$_' is not valid for the specified provider '$($providerInfo.Name)'.")
@@ -185,19 +185,6 @@ function Resolve-ADTPath {
                     }
 
                     $qualifiedPath = "$($providerInfo.ModuleName)\$($providerInfo.Name)::$providerPath"
-
-                    # Validate if the path can be parsed by the provider.
-					if (-not $ExecutionContext.SessionState.Path.IsValid($qualifiedPath))
-                    {
-                        $naerParams = @{
-                            Exception = [System.Management.Automation.ProviderInvocationException]::new("The given path '$_' is not valid for the specified provider '$($providerInfo.Name)'.")
-                            Category = [System.Management.Automation.ErrorCategory]::InvalidData
-                            ErrorId = 'PathNotValidForProvider'
-                            TargetObject = $_
-                            RecommendedAction = "Use a provider qualified path for the specified provider '$($providerInfo.Name)'."
-                        }
-						throw (New-ADTErrorRecord @naerParams)
-					}
 
                     # Try get the item by specifying the the qualified path and invoking the Item.Get method.
                     $(
@@ -213,11 +200,23 @@ function Resolve-ADTPath {
                         catch [System.Management.Automation.ItemNotFoundException]
                         {
                             # Ignore issues with non-existent paths if the parameter is set and the path is not a wildcard or literal path.
-                            if ($IncludeNonExistent -and ($isLiteralPath -or ![WildcardPattern]::ContainsWildcardCharacters($qualifiedPath))) {
+                            if ($IncludeNonExistent -and
+                                (
+                                    $isLiteralPath -or
+                                    $providerInfo.Capabilities -notcontains [System.Management.Automation.Provider.ProviderCapabilities]::ExpandWildcards -or
+                                    ![System.Management.Automation.WildcardPattern]::ContainsWildcardCharacters($qualifiedPath)
+                                )
+                            ) {
                                 return $qualifiedPath
                             }
                             # If the path contains wildcard resolution it should not throw an error.
-                            elseif (!$IncludeNonExistent -and ($isLiteralPath -or ![WildcardPattern]::ContainsWildcardCharacters($qualifiedPath))) {
+                            elseif (!$IncludeNonExistent -and
+                                (
+                                    $isLiteralPath -or
+                                    $providerInfo.Capabilities -notcontains [System.Management.Automation.Provider.ProviderCapabilities]::ExpandWildcards -or
+                                    ![System.Management.Automation.WildcardPattern]::ContainsWildcardCharacters($qualifiedPath)
+                                )
+                            ) {
                                 $naerParams = @{
                                     Exception = $_
                                     Category = [System.Management.Automation.ErrorCategory]::ObjectNotFound
